@@ -39,6 +39,11 @@ public class Plugin extends JavaPlugin {
 	public void onEnable() {
 		registerEvents();
 		initializeDB();
+		
+		if (!db.getInitialized()) {
+			logger.severe("Database connection not established");
+		}
+		
 		itemdb = new ItemDb((IEssentials) Bukkit.getPluginManager().getPlugin("Essentials"));
 		economy = new EconHook();
 	}
@@ -50,10 +55,10 @@ public class Plugin extends JavaPlugin {
 			logger.log(Level.SEVERE, "Connection to Database not established!");
 		}
 		
-		db.createTable("signs", "sign_id INT AUTO_INCREMENT, xpos INT, ypos INT, zpos INT");
-		db.createTable("economies", "econ_id INT AUTO_INCREMENT, name VARCHAR(32)");
-		db.createTable("items", "entry_id INT AUTO_INCREMENT, buys INT, sales INT, econ INT, name TEXT, price DOUBLE, times LONG");
-		db.createTable("purchases", "id INT AUTO_INCREMENT, time BIGINT, item INT");
+		db.createTable("signs", "sign_id INTEGER PRIMARY KEY AUTOINCREMENT UNIQUE, xpos INT, ypos INT, zpos INT, item_id");
+		db.createTable("economies", "econ_id INTEGER PRIMARY KEY AUTOINCREMENT UNIQUE, name VARCHAR(32)");
+		db.createTable("items", "item_id INTEGER PRIMARY KEY AUTOINCREMENT UNIQUE, buys INT, sales INT, econ_name VARCHAR(32), name VARCHAR(32), price DOUBLE, times LONG");
+		db.createTable("purchases", "purchase_id INTEGER PRIMARY KEY AUTOINCREMENT UNIQUE, time BIGINT, item INT");
 	}
 
 	private void registerEvents() {

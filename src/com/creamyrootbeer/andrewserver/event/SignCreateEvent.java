@@ -4,20 +4,21 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
+import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.SignChangeEvent;
+import org.bukkit.inventory.ItemStack;
 
 import com.creamyrootbeer.andrewserver.Plugin;
+import com.creamyrootbeer.andrewserver.util.CommandChecker;
 
 public class SignCreateEvent implements Listener {
 	
 	@EventHandler
 	public void onSignCreated(SignChangeEvent e) {
-		e.getPlayer().sendMessage(e.getLines());
-		
-		/*if (!CommandChecker.checkPermission(e.getPlayer(), "andrewserver.sign.create"))
+		if (!CommandChecker.checkPermission(e.getPlayer(), "andrewserver.sign.create"))
 			return;
 		if (e.getLine(0).equals("[EconBuy]") || e.getLine(0).equals("[EconSell]")) {
 			checkEconExists(e.getLine(1));
@@ -26,12 +27,11 @@ public class SignCreateEvent implements Listener {
 			} else {
 				e.getPlayer().sendMessage(ChatColor.DARK_RED + "Error: Invalid Item!");
 			}
-		}*/
+		}
 	}
 	
 	private void checkEconExists(String name) {
 		try {
-			System.out.println(name);
 			PreparedStatement stmt = Plugin.db.getConn().prepareStatement("SELECT * FROM economies WHERE name = ?");
 			stmt.setString(1, name);
 			ResultSet rs = stmt.executeQuery();
@@ -52,22 +52,25 @@ public class SignCreateEvent implements Listener {
 		try {
 			if (Plugin.itemdb.get(lines[2]) == null) return false;
 			
-			PreparedStatement stmt = Plugin.db.getConn().prepareStatement("SELECT * FROM items WHERE name = ? and economy = ?");
+			PreparedStatement stmt = Plugin.db.getConn().prepareStatement("SELECT * FROM items WHERE name = ? and econ_name = ?");
 			stmt.setString(1, Plugin.itemdb.name(Plugin.itemdb.get(lines[2])));
 			stmt.setString(2, economy);
 			ResultSet rs = stmt.executeQuery();
 			stmt.close();
 			if (rs.getFetchSize() == 0) {
-				stmt = Plugin.db.getConn().prepareStatement("INSERT INTO items (buys, sales, econ, name, price) "
+				stmt = Plugin.db.getConn().prepareStatement("INSERT INTO items (buys, sales, econ_name, name, price) "
 						+ "VALUES (10, 10, ?, ?, 5.00)");
-				stmt.setString(1, Plugin.itemdb.serialize(Plugin.itemdb.get(lines[2])));
-				stmt.setString(2, economy);
+				ItemStack item = Plugin.itemdb.get(lines[2]);
+				item.setAmount(1);
+				stmt.setString(1, economy);
+				stmt.setString(2, Plugin.itemdb.serialize(item));
 				stmt.execute();
 				stmt.close();
 			}
 			
 		} catch (SQLException e) {
 			e.printStackTrace();
+			return false;
 		} catch (Exception e1) {
 			e1.printStackTrace();
 			return false;
