@@ -55,10 +55,10 @@ public class Plugin extends JavaPlugin {
 			logger.log(Level.SEVERE, "Connection to Database not established!");
 		}
 		
-		db.createTable("signs", "sign_id INTEGER PRIMARY KEY AUTOINCREMENT UNIQUE, xpos INT, ypos INT, zpos INT, item_id");
+		db.createTable("signs", "sign_id INTEGER PRIMARY KEY AUTOINCREMENT UNIQUE, xpos INT, ypos INT, zpos INT, item_id INT");
 		db.createTable("economies", "econ_id INTEGER PRIMARY KEY AUTOINCREMENT UNIQUE, name VARCHAR(32)");
 		db.createTable("items", "item_id INTEGER PRIMARY KEY AUTOINCREMENT UNIQUE, buys INT, sales INT, econ_name VARCHAR(32), name VARCHAR(32), price DOUBLE, times LONG");
-		db.createTable("purchases", "purchase_id INTEGER PRIMARY KEY AUTOINCREMENT UNIQUE, time BIGINT, item INT");
+		db.createTable("purchases", "purchase_id INTEGER PRIMARY KEY AUTOINCREMENT UNIQUE, time BIGINT, item_id INT, bought BIT NOT NULL");
 	}
 
 	private void registerEvents() {

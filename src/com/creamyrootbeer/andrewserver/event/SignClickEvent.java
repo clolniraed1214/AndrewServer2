@@ -9,9 +9,11 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 
 import com.creamyrootbeer.andrewserver.Plugin;
+import com.creamyrootbeer.andrewserver.util.EconUtil;
 
 import net.md_5.bungee.api.ChatColor;
 
@@ -33,17 +35,25 @@ public class SignClickEvent implements Listener {
 
 	}
 
+	
+	
+	
+	
+	
 	private void playerUseBuySign(Sign sign, Player player) {
 		double playerCash = Plugin.economy.getPlayerBalance(player);
 		double cost = getSignPrice(sign);
+		
 		if (playerCash >= cost) {
-			double newCash = playerCash - cost;
-			Plugin.economy.setPlayerBalance(player, newCash);
+			Plugin.economy.takePlayer(player, cost);
 			try {
 				ItemStack item = Plugin.itemdb.get(sign.getLine(2));
 				item.setAmount(1);
-
+				
+				player.sendMessage(ChatColor.GREEN+ "You purchased that item for " + Plugin.economy.getEconomy().format(cost));
 				player.getInventory().addItem(item);
+				EconUtil.buy(item, sign.getLine(1));
+				EconUtil.updateSigns(item.getType(), sign.getLine(1));
 			} catch (Exception e) {
 				e.printStackTrace();
 			}
@@ -54,24 +64,29 @@ public class SignClickEvent implements Listener {
 
 	private void playerUseSellSign(Sign sign, Player player) {
 		try {
-			if (player.getInventory().contains(Plugin.itemdb.get(sign.getLine(2)), 1)) {
-				double playerCash = Plugin.economy.getPlayerBalance(player);
+			if (player.getInventory().contains(Plugin.itemdb.get(sign.getLine(2)).getType())) {
 				double cost = getSignPrice(sign);
-				double newCash = playerCash + cost;
-
-				Plugin.economy.setPlayerBalance(player, newCash);
+				Plugin.economy.givePlayer(player, cost);
+				player.sendMessage(ChatColor.GREEN + "You sold that item for " + Plugin.economy.getEconomy().format(cost));
+				
+				Material mat = Plugin.itemdb.get(sign.getLine(2)).getType();
+				removeItem(player.getInventory(), mat);
+				EconUtil.sell(mat, sign.getLine(1));
+				EconUtil.updateSigns(mat, sign.getLine(1));
 				return;
 			}
 		} catch (IndexOutOfBoundsException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		} catch (Exception e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 		player.sendMessage(ChatColor.AQUA + "You don't have any of that item!");
 	}
 
+	
+	
+	
+	
 	private double getSignPrice(Sign sign) {
 		try {
 			ItemStack item = Plugin.itemdb.get(sign.getLine(2));
@@ -94,6 +109,18 @@ public class SignClickEvent implements Listener {
 		}
 
 		return 100000000D;
+	}
+	
+	public void removeItem(Inventory inv, Material mat) {
+		if (inv.contains(mat)) {
+			ItemStack[] items = inv.getContents();
+			for (ItemStack item : items) {
+				if (item.getType().equals(mat)) {
+					item.setAmount(item.getAmount() - 1);
+					break;
+				}
+			}
+		}
 	}
 
 }

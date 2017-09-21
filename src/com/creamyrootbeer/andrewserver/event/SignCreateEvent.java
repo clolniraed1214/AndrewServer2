@@ -13,6 +13,7 @@ import org.bukkit.inventory.ItemStack;
 
 import com.creamyrootbeer.andrewserver.Plugin;
 import com.creamyrootbeer.andrewserver.util.CommandChecker;
+import com.creamyrootbeer.andrewserver.util.EconUtil;
 
 public class SignCreateEvent implements Listener {
 	
@@ -32,17 +33,17 @@ public class SignCreateEvent implements Listener {
 	
 	private void checkEconExists(String name) {
 		try {
-			PreparedStatement stmt = Plugin.db.getConn().prepareStatement("SELECT * FROM economies WHERE name = ?");
+			PreparedStatement stmt = Plugin.db.getConn().prepareStatement("SELECT COUNT(*) FROM economies WHERE name = ?");
 			stmt.setString(1, name);
 			ResultSet rs = stmt.executeQuery();
-			stmt.close();
-			
-			if (rs.getFetchSize() == 0) {
+			rs.next();
+			if (rs.getInt("COUNT(*)") == 0) {
 				stmt = Plugin.db.getConn().prepareStatement("INSERT INTO economies (name) VALUES (?)");
 				stmt.setString(1, name);
 				stmt.execute();
 				stmt.close();
 			}
+			rs.close();
 		} catch (SQLException e) {
 			e.printStackTrace();
 		}
@@ -51,22 +52,25 @@ public class SignCreateEvent implements Listener {
 	private boolean checkItemExists(String[] lines, String economy) {
 		try {
 			if (Plugin.itemdb.get(lines[2]) == null) return false;
+			ItemStack item = Plugin.itemdb.get(lines[2]);
+			item.setAmount(1);
+			String itemName = Plugin.itemdb.serialize(item);
 			
-			PreparedStatement stmt = Plugin.db.getConn().prepareStatement("SELECT * FROM items WHERE name = ? and econ_name = ?");
-			stmt.setString(1, Plugin.itemdb.name(Plugin.itemdb.get(lines[2])));
+			PreparedStatement stmt = Plugin.db.getConn().prepareStatement("SELECT COUNT(*) FROM items WHERE name = ? and econ_name = ?");
+			stmt.setString(1, itemName);
 			stmt.setString(2, economy);
 			ResultSet rs = stmt.executeQuery();
-			stmt.close();
-			if (rs.getFetchSize() == 0) {
+			rs.next();
+			
+			if (rs.getInt("COUNT(*)") == 0) {
 				stmt = Plugin.db.getConn().prepareStatement("INSERT INTO items (buys, sales, econ_name, name, price) "
 						+ "VALUES (10, 10, ?, ?, 5.00)");
-				ItemStack item = Plugin.itemdb.get(lines[2]);
-				item.setAmount(1);
 				stmt.setString(1, economy);
-				stmt.setString(2, Plugin.itemdb.serialize(item));
+				stmt.setString(2, itemName);
 				stmt.execute();
 				stmt.close();
 			}
+			rs.close();
 			
 		} catch (SQLException e) {
 			e.printStackTrace();
@@ -80,13 +84,29 @@ public class SignCreateEvent implements Listener {
 	
 	private void createSignSQL(String[] lines, Location loc) {
 		try {
-			PreparedStatement stmt = Plugin.db.getConn().prepareStatement("INSERT INTO signs (xpos, ypos, zpos) VALUES (?, ?, ?)");
+			ItemStack item = Plugin.itemdb.get(lines[2]);
+			item.setAmount(1);
+			String itemName = Plugin.itemdb.serialize(item);
+		
+			PreparedStatement stmt = Plugin.db.getConn().prepareStatement("SELECT item_id FROM items WHERE econ_name = ? and name = ?"); 
+			stmt.setString(1, lines[1]);
+			stmt.setString(2, itemName);
+			ResultSet rs = stmt.executeQuery();
+			
+			int itemID = rs.getInt("item_id");
+			
+			stmt = Plugin.db.getConn().prepareStatement("INSERT INTO signs (xpos, ypos, zpos, item_id) VALUES (?, ?, ?, ?)");
 			stmt.setInt(1, loc.getBlockX());
 			stmt.setInt(2, loc.getBlockY());
 			stmt.setInt(3, loc.getBlockZ());
+			stmt.setInt(4, itemID);
 			stmt.execute();
 			stmt.close();
+			
+			EconUtil.updateSigns(itemName, lines[1]);
 		} catch (SQLException e) {
+			e.printStackTrace();
+		} catch (Exception e) {
 			e.printStackTrace();
 		}
 	}

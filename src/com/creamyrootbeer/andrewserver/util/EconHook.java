@@ -32,7 +32,26 @@ public class EconHook {
 	}
 	
 	public void setPlayerBalance(OfflinePlayer player, double amount) {
-		if (isSetup) economy.depositPlayer(player, amount);
+		if (isSetup) {
+			economy.withdrawPlayer(player, economy.getBalance(player));
+			economy.depositPlayer(player, amount);
+		}
+	}
+	
+	public void givePlayer(OfflinePlayer player, double amount) {
+		if (isSetup) {
+			economy.depositPlayer(player, amount);
+		}
+	}
+	
+	public void takePlayer(OfflinePlayer player, double amount) {
+		if (isSetup) {
+			economy.withdrawPlayer(player, amount);
+		}
+	}
+	
+	public Economy getEconomy() {
+		return economy;
 	}
 
 }
