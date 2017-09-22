@@ -3,6 +3,7 @@ package com.creamyrootbeer.andrewserver.util;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
@@ -10,19 +11,45 @@ import org.bukkit.block.BlockState;
 import org.bukkit.block.Sign;
 import org.bukkit.inventory.ItemStack;
 
+import com.creamyrootbeer.andrewserver.Constants;
 import com.creamyrootbeer.andrewserver.Plugin;
 
 public class EconUtil {
 
 	public static void buy(String itemName, String economy) {
 		transaction(itemName, economy, true);
+		recalculatePrices(itemName, economy);
 	}
 
 	public static void sell(String itemName, String economy) {
 		transaction(itemName, economy, false);
-		double sold = getTime(getItemID(itemName, economy), false, 30);
-		double bought = getTime(getItemID(itemName, economy), false, 30);
-		calcMult(bought / sold, .25, 20);
+		recalculatePrices(itemName, economy);
+	}
+	
+	public static void recalculatePrices(String itemName, String economy) {
+		try {
+			int id = getItemID(itemName, economy);
+			double sold = getTime(id, false, 30);
+			double bought = getTime(id, true, 30);
+			double mult = calcMult(Math.log(sold / bought), .25, 20);
+			Statement stmt = Plugin.db.getConn().createStatement();
+			ResultSet rs = stmt.executeQuery(String.format("SELECT price FROM items WHERE item_id = %d", id));
+			double price = rs.getDouble("price");
+			rs.close();
+			stmt.close();
+			price *= mult;
+			
+			PreparedStatement pstmt = Plugin.db.getConn().prepareStatement("UPDATE items SET price = ? WHERE item_id = ?");
+			pstmt.setDouble(1, price);
+			pstmt.setInt(2, id);
+			pstmt.executeUpdate();
+			pstmt.close();
+			
+			updateSigns(itemName, economy);
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
+		
 	}
 
 	private static void transaction(String itemName, String economy, boolean bought) {
@@ -47,14 +74,26 @@ public class EconUtil {
 		try {
 			PreparedStatement stmt = Plugin.db.getConn().prepareStatement(
 					String.format(
-							"SELECT purchase_id, time FROM purchases WHERE item_id = ? AND bought = %d ORDER BY time DESC LIMIT 0,%d"),
-					bought ? 1 : 0, count);
+							"SELECT purchase_id, time FROM purchases WHERE item_id = ? AND bought = %d ORDER BY time DESC LIMIT 0,%d",
+					bought ? 1 : 0, count));
 			stmt.setInt(1, itemID);
 			ResultSet rs = stmt.executeQuery();
-			stmt.close();
-			rs.last();
-			double value = rs.getLong("time") / rs.getRow();
+			
+			long max;
+			int size = 0;
+			max = rs.getLong("time");
+			while (rs.next()) {
+				if (rs.getLong("time") < max) max = rs.getLong("time");
+				size++;
+			}
+			
+//			Bukkit.broadcastMessage(String.valueOf(max));
+//			Bukkit.broadcastMessage(String.valueOf(System.currentTimeMillis()));
+//			Bukkit.broadcastMessage(String.valueOf(System.currentTimeMillis() - max));
+			
+			double value = (System.currentTimeMillis() - max) / size;
 			rs.close();
+			stmt.close();
 			return value;
 		} catch (SQLException e) {
 			e.printStackTrace();
@@ -62,7 +101,6 @@ public class EconUtil {
 		return 0;
 	}
 
-	@SuppressWarnings("unused")
 	private static double calcMult(double ratio, double maxChance, double xMod) {
 		return (2 * maxChance) / (1 + Math.pow(Math.E, -ratio / xMod)) + (1 - maxChance);
 	}
@@ -107,7 +145,13 @@ public class EconUtil {
 				BlockState state = Bukkit.getWorlds().get(0).getBlockAt(xpos, ypos, zpos).getState();
 				if (state instanceof Sign) {
 					Sign sign = (Sign) state;
-					sign.setLine(3, Plugin.economy.getEconomy().format(price));
+					double newPrice;
+					if (sign.getLine(0).equals(Constants.SELL_SIGN_TEXT)) {
+						newPrice = price * Constants.SELLING_MULT;
+					} else {
+						newPrice = price;
+					}
+					sign.setLine(3, Plugin.economy.getEconomy().format(newPrice));
 					sign.update();
 				}
 			}
@@ -133,12 +177,11 @@ public class EconUtil {
 			stmt.setString(1, itemName);
 			stmt.setString(2, economy);
 			ResultSet rs = stmt.executeQuery();
-			stmt.close();
 			int id = rs.getInt("item_id");
+			stmt.close();
 			rs.close();
 			return id;
 		} catch (SQLException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 		return 0;

@@ -12,6 +12,7 @@ import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 
+import com.creamyrootbeer.andrewserver.Constants;
 import com.creamyrootbeer.andrewserver.Plugin;
 import com.creamyrootbeer.andrewserver.util.EconUtil;
 
@@ -26,9 +27,9 @@ public class SignClickEvent implements Listener {
 			if (e.getClickedBlock().getState() instanceof Sign) {
 				Sign sign = (Sign) e.getClickedBlock().getState();
 
-				if (sign.getLine(0).equals("[EconBuy]"))
+				if (sign.getLine(0).equals(Constants.BUY_SIGN_TEXT))
 					playerUseBuySign(sign, e.getPlayer());
-				if (sign.getLine(0).equals("[EconSell]"))
+				if (sign.getLine(0).equals(Constants.SELL_SIGN_TEXT))
 					playerUseSellSign(sign, e.getPlayer());
 			}
 		}
@@ -48,7 +49,7 @@ public class SignClickEvent implements Listener {
 			Plugin.economy.takePlayer(player, cost);
 			try {
 				ItemStack item = Plugin.itemdb.get(sign.getLine(2));
-				item.setAmount(1);
+				item.setAmount(8);
 				
 				player.sendMessage(ChatColor.GREEN+ "You purchased that item for " + Plugin.economy.getEconomy().format(cost));
 				player.getInventory().addItem(item);
@@ -64,15 +65,14 @@ public class SignClickEvent implements Listener {
 
 	private void playerUseSellSign(Sign sign, Player player) {
 		try {
-			if (player.getInventory().contains(Plugin.itemdb.get(sign.getLine(2)).getType())) {
-				double cost = getSignPrice(sign);
+			if (player.getInventory().contains(Plugin.itemdb.get(sign.getLine(2)).getType(), 8)) {
+				double cost = getSignPrice(sign) * Constants.SELLING_MULT;
 				Plugin.economy.givePlayer(player, cost);
 				player.sendMessage(ChatColor.GREEN + "You sold that item for " + Plugin.economy.getEconomy().format(cost));
 				
 				Material mat = Plugin.itemdb.get(sign.getLine(2)).getType();
-				removeItem(player.getInventory(), mat);
+				removeItem(player.getInventory(), mat, 8);
 				EconUtil.sell(mat, sign.getLine(1));
-				EconUtil.updateSigns(mat, sign.getLine(1));
 				return;
 			}
 		} catch (IndexOutOfBoundsException e) {
@@ -111,15 +111,26 @@ public class SignClickEvent implements Listener {
 		return 100000000D;
 	}
 	
-	public void removeItem(Inventory inv, Material mat) {
+	public void removeItem(Inventory inv, Material mat, int amount) {
 		if (inv.contains(mat)) {
+			int left = amount;
 			ItemStack[] items = inv.getContents();
-			for (ItemStack item : items) {
-				if (item.getType().equals(mat)) {
-					item.setAmount(item.getAmount() - 1);
-					break;
+			for (int i = 0; i < items.length; i++) {
+				try {
+					if (items[i].getType().equals(mat)) {
+						if (items[i].getAmount() >= left) {
+							items[i].setAmount(items[i].getAmount() - left);
+							break;
+						} else {
+							left -= items[i].getAmount();
+							items[i].setAmount(0);
+						}
+					}
+				} catch (NullPointerException e) {
+					
 				}
 			}
+			inv.setContents(items);
 		}
 	}
 

@@ -47,6 +47,11 @@ public class Plugin extends JavaPlugin {
 		itemdb = new ItemDb((IEssentials) Bukkit.getPluginManager().getPlugin("Essentials"));
 		economy = new EconHook();
 	}
+	
+	@Override
+	public void onDisable() {
+		db.closeDB();
+	}
 
 	private void initializeDB() {
 		db = new SQLiteDBConnection("plugins/AndrewServer/economy.db");

@@ -11,6 +11,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.block.SignChangeEvent;
 import org.bukkit.inventory.ItemStack;
 
+import com.creamyrootbeer.andrewserver.Constants;
 import com.creamyrootbeer.andrewserver.Plugin;
 import com.creamyrootbeer.andrewserver.util.CommandChecker;
 import com.creamyrootbeer.andrewserver.util.EconUtil;
@@ -25,6 +26,9 @@ public class SignCreateEvent implements Listener {
 			checkEconExists(e.getLine(1));
 			if (checkItemExists(e.getLines(), e.getLine(1))) {
 				createSignSQL(e.getLines(), e.getBlock().getLocation());
+				
+				if (e.getLine(0).equals("[EconBuy]")) e.setLine(0, Constants.BUY_SIGN_TEXT);
+				if (e.getLine(0).equals("[EconSell]")) e.setLine(0, Constants.SELL_SIGN_TEXT);
 			} else {
 				e.getPlayer().sendMessage(ChatColor.DARK_RED + "Error: Invalid Item!");
 			}
@@ -68,6 +72,16 @@ public class SignCreateEvent implements Listener {
 				stmt.setString(1, economy);
 				stmt.setString(2, itemName);
 				stmt.execute();
+				stmt.close();
+				
+				stmt = Plugin.db.getConn().prepareStatement("INSERT INTO purchases (time, item_id, bought) VALUES (?, ?, ?)");
+				stmt.setLong(1, System.currentTimeMillis());
+				stmt.setInt(2, EconUtil.getItemID(itemName, economy));
+				stmt.setInt(3, 1);
+				stmt.executeUpdate();
+				
+				stmt.setInt(3, 0);
+				stmt.executeUpdate();
 				stmt.close();
 			}
 			rs.close();

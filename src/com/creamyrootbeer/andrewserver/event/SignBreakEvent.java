@@ -6,6 +6,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
 
+import com.creamyrootbeer.andrewserver.Constants;
 import com.creamyrootbeer.andrewserver.Plugin;
 
 public class SignBreakEvent implements Listener {
@@ -14,7 +15,7 @@ public class SignBreakEvent implements Listener {
 	public void onSignBreak(BlockBreakEvent e) {
 		if (e.getBlock().getState() instanceof Sign) {
 			Sign sign = (Sign) e.getBlock().getState();
-			if (sign.getLine(0).equals("[EconBuy]") || sign.getLine(0).equals("[EconSell]")) {
+			if (sign.getLine(0).equals(Constants.BUY_SIGN_TEXT) || sign.getLine(0).equals(Constants.SELL_SIGN_TEXT)) {
 				signDestroy(sign);
 			}
 		}
